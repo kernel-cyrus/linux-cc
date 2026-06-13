@@ -2,6 +2,7 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Kernel source
 KERNEL_SRC="$ROOT_DIR/linux"
@@ -200,248 +201,17 @@ echo "All rootfs images are ready in: $ROOTFS_DIR"
 
 # Generate build.sh
 echo "Generate build.sh"
-cat > "$KERNEL_SRC/build.sh" <<'EOF'
-#!/bin/bash
-set -e
-
-case "$(uname -m)" in
-    x86_64)
-        HOST_ARCH="x86"
-        ;;
-    aarch64|arm64)
-        HOST_ARCH="arm64"
-        ;;
-    riscv64)
-        HOST_ARCH="riscv"
-        ;;
-    *)
-        echo "ERROR: unsupported host arch: $(uname -m)"
-        exit 1
-        ;;
-esac
-
-ARCH="${ARCH:-$HOST_ARCH}"
-CROSS_COMPILE="${CROSS_COMPILE:-}"
-
-if [ "$ARCH" != "$HOST_ARCH" ] && [ -z "$CROSS_COMPILE" ]; then
-    case "$ARCH" in
-        arm64)  CROSS_COMPILE="aarch64-linux-gnu-" ;;
-        riscv)  CROSS_COMPILE="riscv64-linux-gnu-" ;;
-        x86)    CROSS_COMPILE="x86_64-linux-gnu-" ;;
-    esac
-    echo "Auto-set CROSS_COMPILE=$CROSS_COMPILE"
-fi
-
-MAKE_ARGS=(
-    ARCH="$ARCH"
-)
-
-if [ -n "$CROSS_COMPILE" ]; then
-    MAKE_ARGS+=(
-        CROSS_COMPILE="$CROSS_COMPILE"
-    )
-fi
-
-case "$ARCH" in
-    x86)
-        DEFCONFIG="x86_64_defconfig"
-        IMAGE_TARGET="bzImage"
-        ;;
-    arm64)
-        DEFCONFIG="defconfig"
-        IMAGE_TARGET="Image"
-        ;;
-    riscv)
-        DEFCONFIG="defconfig"
-        IMAGE_TARGET="Image"
-        ;;
-    *)
-        echo "ERROR: unsupported ARCH: $ARCH"
-        exit 1
-        ;;
-esac
-
-CONFIGS=(
-    KALLSYMS_ALL
-    NET_9P
-    NET_9P_VIRTIO
-    VIRTIO_BLK
-    VIRTIO_PCI
-    FUSE_FS
-    CUSE
-    VIRTIO_FS
-    9P_FS
-    9P_FS_POSIX_ACL
-    DEBUG_INFO
-    GDB_SCRIPTS
-    READABLE_ASM
-    FUNCTION_TRACER
-)
-
-echo "HOST_ARCH=$HOST_ARCH"
-echo "ARCH=$ARCH"
-echo "CROSS_COMPILE=$CROSS_COMPILE"
-echo "DEFCONFIG=$DEFCONFIG"
-echo "IMAGE_TARGET=$IMAGE_TARGET"
-
-if [ ! -f .config ]; then
-    make "${MAKE_ARGS[@]}" "$DEFCONFIG"
-fi
-
-for cfg in "${CONFIGS[@]}"; do
-    scripts/config --enable "$cfg"
-done
-
-make "${MAKE_ARGS[@]}" olddefconfig
-
-make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET"
-EOF
+cp "$SCRIPT_DIR/linux/build.sh" "$KERNEL_SRC/build.sh"
 chmod +x "$KERNEL_SRC/build.sh"
 
 # Generate run-qemu.sh
 echo "Generate run-qemu.sh"
-cat > "$KERNEL_SRC/run-qemu.sh" <<EOF
-#!/bin/bash
-set -e
-
-VMLINUX="vmlinux"
-ROOTFS_DIR="$ROOTFS_DIR"
-ROOT_DIR="$ROOT_DIR"
-
-if [ ! -f "\$VMLINUX" ]; then
-    echo "ERROR: \$VMLINUX not found. Please build kernel first."
-    exit 1
-fi
-
-VMLINUX_INFO="\$(file "\$VMLINUX")"
-
-case "\$VMLINUX_INFO" in
-    *"x86-64"*)
-        ARCH="x86"
-        QEMU="qemu-system-x86_64"
-        MACHINE="accel=tcg"
-        KERNEL_IMAGE="arch/x86/boot/bzImage"
-        ROOTFS_IMAGE="\$ROOTFS_DIR/debian-12-nocloud-amd64.qcow2"
-        ROOT_DEV="/dev/vda1"
-        CONSOLE="ttyS0"
-        EXTRA_APPEND="earlycon=uart,io,0x3f8,115200 nokaslr"
-        EXTRA_QEMU_ARGS=()
-        ;;
-    *"aarch64"*|*"ARM aarch64"*)
-        ARCH="arm64"
-        QEMU="qemu-system-aarch64"
-        MACHINE="virt,accel=tcg"
-        KERNEL_IMAGE="arch/arm64/boot/Image"
-        ROOTFS_IMAGE="\$ROOTFS_DIR/debian-12-nocloud-arm64.qcow2"
-        ROOT_DEV="/dev/vda1"
-        CONSOLE="ttyAMA0"
-        EXTRA_APPEND="earlycon=pl011,0x09000000 nokaslr"
-        EXTRA_QEMU_ARGS=(
-            -cpu cortex-a57
-        )
-        ;;
-    *"RISC-V"*)
-        ARCH="riscv"
-        QEMU="qemu-system-riscv64"
-        MACHINE="virt"
-        KERNEL_IMAGE="arch/riscv/boot/Image"
-        ROOTFS_IMAGE="\$ROOTFS_DIR/debian-sid-nocloud-riscv64-daily.qcow2"
-        ROOT_DEV="/dev/vda1"
-        CONSOLE="ttyS0"
-        EXTRA_APPEND="earlycon=sbi nokaslr"
-        EXTRA_QEMU_ARGS=()
-        ;;
-    *)
-        echo "ERROR: unsupported vmlinux arch:"
-        echo "\$VMLINUX_INFO"
-        exit 1
-        ;;
-esac
-
-if [ ! -f "\$KERNEL_IMAGE" ]; then
-    echo "ERROR: kernel image not found: \$KERNEL_IMAGE"
-    exit 1
-fi
-
-if [ ! -f "\$ROOTFS_IMAGE" ]; then
-    echo "ERROR: rootfs image not found: \$ROOTFS_IMAGE"
-    exit 1
-fi
-
-echo "VMLINUX: \$VMLINUX_INFO"
-echo "ARCH: \$ARCH"
-echo "QEMU: \$QEMU"
-echo "KERNEL_IMAGE: \$KERNEL_IMAGE"
-echo "ROOTFS_IMAGE: \$ROOTFS_IMAGE"
-
-"\$QEMU" \\
-    -m 2048 \\
-    -smp 2 \\
-    -machine "\$MACHINE" \\
-    "\${EXTRA_QEMU_ARGS[@]}" \\
-    -kernel "\$KERNEL_IMAGE" \\
-    -drive file="\$ROOTFS_IMAGE",if=virtio,format=qcow2 \\
-    -virtfs local,path="\$ROOT_DIR",mount_tag=hostshare,security_model=mapped-xattr,id=hostshare \\
-    -append "root=\$ROOT_DEV rw console=\$CONSOLE \$EXTRA_APPEND systemd.show_status=false" \\
-    -serial mon:stdio \\
-    -nographic \\
-    -s
-
-# Mount 9pfs:
-# 1. sudo mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt
-# 2. echo 'hostshare  /mnt  9p  trans=virtio,version=9p2000.L  0  0' | sudo tee -a /etc/fstab
-EOF
+cp "$SCRIPT_DIR/linux/run-qemu.sh" "$KERNEL_SRC/run-qemu.sh"
 chmod +x "$KERNEL_SRC/run-qemu.sh"
 
 # Generate run-gdb.sh
 echo "Generate run-gdb.sh"
-cat > "$KERNEL_SRC/run-gdb.sh" <<'EOF'
-#!/bin/bash
-set -e
-
-VMLINUX="vmlinux"
-
-if [ ! -f "$VMLINUX" ]; then
-    echo "ERROR: $VMLINUX not found. Please build kernel first."
-    exit 1
-fi
-
-VMLINUX_INFO="$(file "$VMLINUX")"
-
-case "$VMLINUX_INFO" in
-    *"x86-64"*)
-        ARCH="x86"
-        GDB_ARCH="i386:x86-64"
-        ;;
-    *"aarch64"*|*"ARM aarch64"*)
-        ARCH="arm64"
-        GDB_ARCH="aarch64"
-        ;;
-    *"RISC-V"*)
-        ARCH="riscv"
-        GDB_ARCH="riscv:rv64"
-        ;;
-    *)
-        echo "ERROR: unsupported vmlinux arch:"
-        echo "$VMLINUX_INFO"
-        exit 1
-        ;;
-esac
-
-echo "VMLINUX: $VMLINUX_INFO"
-echo "ARCH: $ARCH"
-echo "GDB_ARCH: $GDB_ARCH"
-
-GDB_CMDS=(
-    "-ex" "set architecture $GDB_ARCH"
-    "-ex" "set disassemble-next-line on"
-    "-ex" "target remote :1234"
-    "-ex" "b start_kernel"
-    "-ex" "c"
-)
-
-exec gdb-multiarch "$VMLINUX" "${GDB_CMDS[@]}"
-EOF
+cp "$SCRIPT_DIR/linux/run-gdb.sh" "$KERNEL_SRC/run-gdb.sh"
 chmod +x "$KERNEL_SRC/run-gdb.sh"
 
 echo "-----------------------------"
@@ -450,7 +220,7 @@ echo "  cd $KERNEL_SRC"
 echo
 echo "Build kernel"
 echo "  ./build.sh"
-echo "  ARCH=[x86|arm64|riscv] ./build.sh"
+echo "  ARCH=[x86|arm64|riscv] ./build.sh build"
 echo
 echo "Start QEMU"
 echo "  ./run-qemu.sh"
