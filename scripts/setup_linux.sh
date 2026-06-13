@@ -22,7 +22,6 @@ sudo apt-get update
 sudo apt-get install -y \
     git \
     wget \
-    curl \
     ca-certificates \
     make \
     gcc \
@@ -83,6 +82,16 @@ fi
 # Download debian rootfs and update
 mkdir -p "$ROOTFS_DIR"
 
+if ! groups | grep -q '\bkvm\b'; then
+    echo "Adding $USER to kvm group..."
+    sudo usermod -aG kvm "$USER"
+fi
+
+if [ -e /dev/kvm ] && [ ! -r /dev/kvm ]; then
+    echo "Granting temporary read access to /dev/kvm..."
+    sudo chmod 0666 /dev/kvm
+fi
+
 echo "Checking /boot/vmlinuz-* read permission..."
 if find /boot -maxdepth 1 -name 'vmlinuz-*' -readable 2>/dev/null | grep -q .; then
     echo "/boot/vmlinuz-* is readable, skipped."
@@ -125,11 +134,24 @@ update_rootfs() {
     echo "URL: $url"
     echo "========================================"
 
-    if [ ! -f "$img_path" ]; then
+    local need_download=true
+    if [ -f "$img_path" ] && qemu-img check "$img_path" >/dev/null 2>&1; then
+        echo "$img already exists and passed integrity check, download skipped."
+        need_download=false
+    elif [ -f "$img_path" ]; then
+        echo "$img exists but failed integrity check, re-downloading..."
+    fi
+
+    if $need_download; then
         echo "Download $arch rootfs..."
-        wget -O "$img_path" "$url"
-    else
-        echo "$img already exists at $ROOTFS_DIR, download skipped."
+        wget -c --tries=3 --waitretry=5 -O "$img_path" "$url"
+        echo "Verifying downloaded image..."
+        if ! qemu-img check "$img_path" >/dev/null 2>&1; then
+            echo "ERROR: $img_path failed integrity check after download."
+            rm -f "$img_path"
+            exit 1
+        fi
+        echo "$arch rootfs download verified."
     fi
 
     echo "Updating $arch rootfs image..."
