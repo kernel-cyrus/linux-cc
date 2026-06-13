@@ -182,26 +182,33 @@ cat > "$KERNEL_SRC/build.sh" <<'EOF'
 #!/bin/bash
 set -e
 
-HOST_ARCH="$(uname -m)"
-
-case "$HOST_ARCH" in
+case "$(uname -m)" in
     x86_64)
-        DEFAULT_ARCH="x86"
+        HOST_ARCH="x86"
         ;;
     aarch64|arm64)
-        DEFAULT_ARCH="arm64"
+        HOST_ARCH="arm64"
         ;;
     riscv64)
-        DEFAULT_ARCH="riscv"
+        HOST_ARCH="riscv"
         ;;
     *)
-        echo "ERROR: unsupported host arch: $HOST_ARCH"
+        echo "ERROR: unsupported host arch: $(uname -m)"
         exit 1
         ;;
 esac
 
-ARCH="${ARCH:-$DEFAULT_ARCH}"
+ARCH="${ARCH:-$HOST_ARCH}"
 CROSS_COMPILE="${CROSS_COMPILE:-}"
+
+if [ "$ARCH" != "$HOST_ARCH" ] && [ -z "$CROSS_COMPILE" ]; then
+    case "$ARCH" in
+        arm64)  CROSS_COMPILE="aarch64-linux-gnu-" ;;
+        riscv)  CROSS_COMPILE="riscv64-linux-gnu-" ;;
+        x86)    CROSS_COMPILE="x86_64-linux-gnu-" ;;
+    esac
+    echo "Auto-set CROSS_COMPILE=$CROSS_COMPILE"
+fi
 
 MAKE_ARGS=(
     ARCH="$ARCH"
@@ -265,7 +272,7 @@ done
 
 make "${MAKE_ARGS[@]}" olddefconfig
 
-make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET" modules
+make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET"
 EOF
 chmod +x "$KERNEL_SRC/build.sh"
 
@@ -421,9 +428,7 @@ echo "  cd $KERNEL_SRC"
 echo
 echo "Build kernel"
 echo "  ./build.sh"
-echo "  ARCH=x86 ./build.sh"
-echo "  ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- ./build.sh"
-echo "  ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- ./build.sh"
+echo "  ARCH=[x86|arm64|riscv] ./build.sh"
 echo
 echo "Start QEMU"
 echo "  ./run-qemu.sh"
