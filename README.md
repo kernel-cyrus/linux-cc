@@ -80,8 +80,8 @@ echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
 systemctl restart ssh
 passwd                              # set a root password
 
-# 2. On the host (skip ssh-keygen if you already have a key)
-ssh-keygen
+# 2. On the host
+ssh-keygen                          # skip if you already have a key
 ssh-copy-id -p 2222 root@localhost
 
 # 3. Connect

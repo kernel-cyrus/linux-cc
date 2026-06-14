@@ -18,7 +18,7 @@ SSH to trigger the kernel paths you want to break on.
 
 - **Run all `build.sh` / `run-qemu.sh` commands from `linux/`.**
 - **GDB stub:** always on host `localhost:1234` while QEMU is running.
-- **SSH into guest:** `ssh -p 2222 -o StrictHostKeyChecking=no root@localhost '<cmd>'`
+- **SSH into guest:** `ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost '<cmd>'`
 - **`nokaslr`** is set in the kernel cmdline, so symbol addresses are stable.
 - **Always pass absolute paths to GDB** (`file`, `source`). The MCP server's CWD is
   its own install dir, not `linux/`. The kernel lives at
@@ -124,7 +124,7 @@ To make a breakpoint fire, **trigger the path from the guest over SSH** (the gue
 runs only while GDB has issued `continue`):
 
 ```bash
-SSH='ssh -p 2222 -o StrictHostKeyChecking=no root@localhost'
+SSH='ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost'
 $SSH 'cat /some/file'      # e.g. triggers a break on do_sys_open
 ```
 

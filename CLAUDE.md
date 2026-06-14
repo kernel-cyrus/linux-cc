@@ -59,10 +59,68 @@ ARCH=riscv ./build.sh build
 - The project root (`linux-cc/`) is shared into the VM at `/mnt` via 9pfs (virtio),
   so files under `user/` are reachable in the guest at `/mnt/user/...` (no copying)
 - **SSH:** host port 2222 forwards to guest :22 —
-  `ssh -p 2222 -o StrictHostKeyChecking=no root@localhost '<cmd>'`
+  `ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost '<cmd>'`
+  (`UserKnownHostsFile=/dev/null` keeps a regenerated guest host key from
+  blocking automated SSH — see Troubleshooting)
 - `-s` flag enables the GDB stub on port 1234 (always on while QEMU runs)
 - `nokaslr` is set on the kernel cmdline, so symbol addresses are stable
 - Supported targets: x86_64, arm64 (cortex-a57), riscv64
+
+## Troubleshooting
+
+### `kex_exchange_identification: Connection reset by peer` on SSH
+
+```
+$ ssh -p 2222 root@localhost
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by 127.0.0.1 port 2222
+```
+
+The port-2222 forward is up but no SSH server is listening in the guest — the
+rootfs has not had SSH enabled yet (the README **Enable QEMU SSH** step was
+skipped). This requires interactive steps inside the guest that must run on a
+console (not over SSH), so **stop and ask the user to complete it themselves**:
+
+```bash
+# 1. In the guest VM
+apt update && apt install -y openssh-server
+echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
+systemctl restart ssh
+passwd                              # set a root password
+
+# 2. On the host
+ssh-keygen                          # skip if you already have a key
+ssh-copy-id -p 2222 root@localhost
+
+# 3. Connect
+ssh -p 2222 root@localhost
+```
+
+Once the user confirms SSH works, Claude can resume the original task.
+
+### `REMOTE HOST IDENTIFICATION HAS CHANGED!` on SSH
+
+```
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+...
+Host key for [localhost]:2222 has changed and you have requested strict checking.
+```
+
+`[localhost]:2222` now presents a different host key than the one cached in
+`~/.ssh/known_hosts`. This is expected after the rootfs image is re-fetched,
+recreated, or SSH is re-enabled (the guest regenerates its host keys), not an
+actual attack. Ask the user to drop the stale entry and re-trust the host:
+
+```bash
+ssh-keygen -f "$HOME/.ssh/known_hosts" -R "[localhost]:2222"   # remove old key
+ssh-copy-id -p 2222 root@localhost                             # re-add host + push your key
+ssh -p 2222 root@localhost                                     # verify
+```
+
+The exact `ssh-keygen -f ... -R ...` line is also printed in the warning itself.
+Once the host key is updated, Claude can resume the original task.
 
 ## Kernel Debugging (GDB)
 

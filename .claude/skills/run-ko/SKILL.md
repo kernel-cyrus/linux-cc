@@ -13,7 +13,7 @@ Workflow for testing a kernel module against the QEMU guest. The host project ro
 ## Key facts
 
 - **Run all `run-qemu.sh` / `build.sh` commands from `linux/`.**
-- **SSH into guest:** `ssh -p 2222 -o StrictHostKeyChecking=no root@localhost '<cmd>'`
+- **SSH into guest:** `ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost '<cmd>'`
 - **Module path in guest:** `/mnt/user/modules/<name>/<name>.ko`
 - **Kernel log on host:** `linux/serial.log` (full boot + runtime serial console).
   `dmesg` over SSH also works once the guest is up.
@@ -43,7 +43,7 @@ until SSH is reachable (or prints an SSH-timeout error). If it times out, inspec
 ### 3. Load and exercise the module over SSH
 
 ```bash
-SSH='ssh -p 2222 -o StrictHostKeyChecking=no root@localhost'
+SSH='ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost'
 $SSH 'insmod /mnt/user/modules/<name>/<name>.ko'   # add params: <name>.ko foo=1
 $SSH 'lsmod | grep <name>'
 $SSH 'modinfo /mnt/user/modules/<name>/<name>.ko'
