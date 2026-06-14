@@ -88,7 +88,14 @@ cd linux/
 
 ## GDB (optional, source-level debugging)
 
-QEMU always exposes a GDB stub on `:1234`. To set breakpoints inside the module,
-attach with `./run-gdb.sh`, then in GDB use `lx-symbols` (loads module symbols) and
-`add-symbol-file` if needed. Useful for stepping through a faulting function found
-in a panic trace.
+QEMU always exposes a GDB stub on `:1234`. To set breakpoints inside the module:
+
+- **Quick attach:** `cd linux/ && ./run-gdb.sh` launches `gdb-multiarch`, sources
+  `vmlinux-gdb.py`, and breaks at `start_kernel`. Once attached, run `lx-symbols`
+  (loads symbols for all loaded modules), then `break <module_function>`. Re-run
+  `lx-symbols` after each `insmod`.
+- **Driven via MCP / full source-level flow:** use the **debug-linux** skill, which
+  drives `gdb-multiarch` through the `mdb-gdb` MCP server (`mcp__mdb-gdb__*` tools)
+  for breakpoints, stepping, and inspecting structures.
+
+Useful for stepping through a faulting function found in a panic trace.

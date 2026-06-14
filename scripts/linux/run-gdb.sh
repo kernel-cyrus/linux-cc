@@ -37,6 +37,8 @@ echo "GDB_ARCH: $GDB_ARCH"
 GDB_CMDS=(
     "-ex" "set architecture $GDB_ARCH"
     "-ex" "set disassemble-next-line on"
+    "-ex" "add-auto-load-safe-path $(pwd)"
+    "-ex" "source vmlinux-gdb.py"
     "-ex" "target remote :1234"
     "-ex" "b start_kernel"
     "-ex" "c"

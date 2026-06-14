@@ -199,20 +199,17 @@ done
 echo
 echo "All rootfs images are ready in: $ROOTFS_DIR"
 
-# Generate build.sh
-echo "Generate build.sh"
-cp "$SCRIPT_DIR/linux/build.sh" "$KERNEL_SRC/build.sh"
-chmod +x "$KERNEL_SRC/build.sh"
+# Link build.sh
+echo "Link build.sh"
+ln -sf "../scripts/linux/build.sh" "$KERNEL_SRC/build.sh"
 
-# Generate run-qemu.sh
-echo "Generate run-qemu.sh"
-cp "$SCRIPT_DIR/linux/run-qemu.sh" "$KERNEL_SRC/run-qemu.sh"
-chmod +x "$KERNEL_SRC/run-qemu.sh"
+# Link run-qemu.sh
+echo "Link run-qemu.sh"
+ln -sf "../scripts/linux/run-qemu.sh" "$KERNEL_SRC/run-qemu.sh"
 
-# Generate run-gdb.sh
-echo "Generate run-gdb.sh"
-cp "$SCRIPT_DIR/linux/run-gdb.sh" "$KERNEL_SRC/run-gdb.sh"
-chmod +x "$KERNEL_SRC/run-gdb.sh"
+# Link run-gdb.sh
+echo "Link run-gdb.sh"
+ln -sf "../scripts/linux/run-gdb.sh" "$KERNEL_SRC/run-gdb.sh"
 
 echo "-----------------------------------------------------"
 echo

@@ -1,3 +1,5 @@
 /linux
 /rootfs
 /user
+/mcp/*
+!/mcp/.gitkeep

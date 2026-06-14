@@ -111,6 +111,10 @@ case "$CMD" in
             FUNCTION_TRACER
         )
 
+        DISABLE_CONFIGS=(
+            DEBUG_INFO_REDUCED
+        )
+
         echo "HOST_ARCH=$HOST_ARCH"
         echo "ARCH=$ARCH"
         echo "CROSS_COMPILE=$CROSS_COMPILE"
@@ -125,9 +129,13 @@ case "$CMD" in
             scripts/config --enable "$cfg"
         done
 
-        make "${MAKE_ARGS[@]}" olddefconfig
+        for cfg in "${DISABLE_CONFIGS[@]}"; do
+            scripts/config --disable "$cfg"
+        done
 
+        make "${MAKE_ARGS[@]}" olddefconfig
         make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET" modules
+        make "${MAKE_ARGS[@]}" scripts_gdb
         ;;
     clean)
         ARCH="$(detect_arch)"

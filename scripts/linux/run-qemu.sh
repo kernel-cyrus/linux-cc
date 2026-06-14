@@ -13,7 +13,7 @@ Options:
   --bg              Run QEMU in background
   --wait-ssh        Wait for SSH ready after --bg start
   --shutdown-bg     Shut down background running QEMU
-  --serial=MODE     Serial backend: stdio or pty (default: pty with --bg, else stdio)
+  --serial=MODE     Serial backend: stdio(default) or pty(--bg default)
   --logfile=PATH    Serial log file (default: serial.log)
   --help            Show this help"
 
@@ -36,12 +36,12 @@ for arg in "$@"; do
         --serial=*)     SERIAL_MODE="${arg#--serial=}" ;;
         --bg)           RUN_BG=1 ;;
         --shutdown-bg)  SHUTDOWN_BG=1 ;;
-        --wait-ssh)     WAIT=1 ;;
+        --wait-ssh)     WAIT_SSH=1 ;;
         --help)         echo "$HELP"; exit 0 ;;
     esac
 done
 
-# Default serial: pty for --bg, stdio otherwise
+# Select serial
 if [ -z "$SERIAL_MODE" ]; then
     if [ "$RUN_BG" = "1" ]; then
         SERIAL_MODE="pty"
@@ -234,7 +234,7 @@ if [ "$RUN_BG" = "1" ]; then
             echo "WARNING: serial pty not found in $BOOT_LOG."
         fi
     fi
-    if [ "$WAIT" = "1" ]; then
+    if [ "$WAIT_SSH" = "1" ]; then
         echo "Wait for SSH ready..."
         if wait_ssh_ready; then
             echo "SSH is ready: ssh -p $SSH_PORT $SSH_HOST"
