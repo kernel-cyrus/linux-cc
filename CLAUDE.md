@@ -39,6 +39,7 @@ ARCH=riscv ./build.sh build
 # Start QEMU (auto-detects arch from vmlinux)
 ./run-qemu.sh                    # foreground, serial on stdio
 ./run-qemu.sh --bg --wait-ssh   # background, block until SSH is up
+./run-qemu.sh --wait-gdb        # freeze CPU at boot, wait for GDB to connect
 ./run-qemu.sh --shutdown-bg     # graceful poweroff of a --bg instance
 
 # Attach GDB directly (run after QEMU is started; connects to :1234)
@@ -46,6 +47,7 @@ ARCH=riscv ./build.sh build
 ```
 
 `run-qemu.sh` options: `--bg` (detached), `--wait-ssh` (wait for SSH after `--bg`),
+`--wait-gdb` (boot with `-S`, freeze CPUs until GDB connects and continues),
 `--shutdown-bg` (poweroff, falling back to SIGTERM), `--serial=stdio|pty`,
 `--logfile=PATH` (serial log, default `serial.log`). In `--bg` mode it writes
 `qemu.pid`, logs the console to `linux/serial.log`, and boot output to

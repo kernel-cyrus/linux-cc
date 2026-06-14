@@ -74,6 +74,16 @@ Boots QEMU detached, logs the serial console to `linux/serial.log`, and blocks u
 SSH is up. The GDB stub on `:1234` is live as soon as QEMU starts. On SSH timeout,
 inspect `linux/serial.log` and `linux/qemu-boot.log`.
 
+To debug **early boot** (before SSH or even `start_kernel`), add `--wait-gdb` so QEMU
+freezes the CPUs at startup (`-S`) and only runs once GDB connects and continues:
+
+```bash
+./run-qemu.sh --bg --wait-gdb
+```
+
+`--wait-ssh` won't return here (the kernel hasn't booted), so omit it and attach GDB
+first; the kernel starts executing the moment you issue `continue`.
+
 ### 4. Start a GDB session and attach to the stub
 
 Use the MCP tools (arch shown for the common aarch64 build — adjust per the table

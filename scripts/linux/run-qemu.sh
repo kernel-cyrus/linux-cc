@@ -12,6 +12,7 @@ HELP="Usage: ./run-qemu.sh [OPTIONS]
 Options:
   --bg              Run QEMU in background
   --wait-ssh        Wait for SSH ready after --bg start
+  --wait-gdb        Freeze CPU at startup, wait for GDB to connect and continue
   --shutdown-bg     Shut down background running QEMU
   --serial=MODE     Serial backend: stdio(default) or pty(--bg default)
   --logfile=PATH    Serial log file (default: serial.log)
@@ -28,6 +29,7 @@ SERIAL_MODE=""
 RUN_BG=0
 SHUTDOWN_BG=0
 WAIT_SSH=0
+WAIT_GDB=0
 PID_FILE="qemu.pid"
 
 for arg in "$@"; do
@@ -37,6 +39,7 @@ for arg in "$@"; do
         --bg)           RUN_BG=1 ;;
         --shutdown-bg)  SHUTDOWN_BG=1 ;;
         --wait-ssh)     WAIT_SSH=1 ;;
+        --wait-gdb)     WAIT_GDB=1 ;;
         --help)         echo "$HELP"; exit 0 ;;
     esac
 done
@@ -215,6 +218,10 @@ QEMU_CMD=(
     -nographic
     -s
 )
+
+if [ "$WAIT_GDB" = "1" ]; then
+    QEMU_CMD+=(-S)
+fi
 
 if [ "$RUN_BG" = "1" ]; then
     if [ -f "$PID_FILE" ]; then
