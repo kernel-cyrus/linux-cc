@@ -214,18 +214,38 @@ echo "Generate run-gdb.sh"
 cp "$SCRIPT_DIR/linux/run-gdb.sh" "$KERNEL_SRC/run-gdb.sh"
 chmod +x "$KERNEL_SRC/run-gdb.sh"
 
-echo "-----------------------------"
+echo "-----------------------------------------------------"
+echo
 echo "Kernel source"
 echo "  cd $KERNEL_SRC"
 echo
 echo "Build kernel"
-echo "  ./build.sh"
 echo "  ARCH=[x86|arm64|riscv] ./build.sh build"
 echo
 echo "Start QEMU"
 echo "  ./run-qemu.sh"
+echo "  ./run-qemu.sh --help"
 echo
 echo "Debug with GDB"
 echo "  ./run-gdb.sh"
-echo "-----------------------------"
+echo
+echo "====================================================="
+echo "  Enable SSH access to guest VM  (manual steps)"
+echo "====================================================="
+echo "1. Setup ssh server in guest VM
+echo "    apt update"
+echo "    apt install -y openssh-server"
+echo "    echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config"
+echo "    systemctl restart ssh"
+echo "    passwd  # set a root password"
+echo
+echo "2. Generate ssh-key on HOST"
+echo "    ssh-keygen  (bypass if you already have one)"
+echo
+echo "3. Copy the key guest VM"
+echo "    ssh-copy-id -p 2222 root@localhost"
+echo
+echo "4. Connect to guest VM"
+echo "    ssh -p 2222 root@localhost"
+echo "-----------------------------------------------------"
 echo "Done."
