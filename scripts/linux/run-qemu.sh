@@ -1,12 +1,140 @@
 #!/bin/bash
 set -e
 
+# Paths
 VMLINUX="vmlinux"
-ROOTFS_DIR="../rootfs"
 ROOT_DIR=".."
+ROOTFS_DIR="../rootfs"
+
+# Help
+HELP="Usage: ./run-qemu.sh [OPTIONS]
+
+Options:
+  --bg              Run QEMU in background
+  --wait-ssh        Wait for SSH ready after --bg start
+  --shutdown-bg     Shut down background running QEMU
+  --serial=MODE     Serial backend: stdio or pty (default: pty with --bg, else stdio)
+  --logfile=PATH    Serial log file (default: serial.log)
+  --help            Show this help"
+
+# VM SSH
+SSH_HOST="root@localhost"
+SSH_PORT=2222
+SSH_ARGS=(-o StrictHostKeyChecking=no -o ConnectTimeout=3)
+
+# Options
+SERIAL_LOG="serial.log"
+SERIAL_MODE=""
+RUN_BG=0
+SHUTDOWN_BG=0
+WAIT_SSH=0
+PID_FILE="qemu.pid"
+
+for arg in "$@"; do
+    case "$arg" in
+        --logfile=*)    SERIAL_LOG="${arg#--logfile=}" ;;
+        --serial=*)     SERIAL_MODE="${arg#--serial=}" ;;
+        --bg)           RUN_BG=1 ;;
+        --shutdown-bg)  SHUTDOWN_BG=1 ;;
+        --wait-ssh)     WAIT=1 ;;
+        --help)         echo "$HELP"; exit 0 ;;
+    esac
+done
+
+# Default serial: pty for --bg, stdio otherwise
+if [ -z "$SERIAL_MODE" ]; then
+    if [ "$RUN_BG" = "1" ]; then
+        SERIAL_MODE="pty"
+    else
+        SERIAL_MODE="stdio"
+    fi
+fi
+
+# Functions
+wait_ssh_ready() {
+    local i=0
+    while [ $i -lt 10 ]; do
+        ssh -p "$SSH_PORT" "${SSH_ARGS[@]}" "$SSH_HOST" true 2>/dev/null && return 0
+        sleep 1; i=$((i+1))
+    done
+    return 1
+}
+
+wait_qemu_exit() {
+    local pid=$1 i=0
+    while kill -0 "$pid" 2>/dev/null && [ $i -lt 30 ]; do
+        sleep 1; i=$((i+1))
+    done
+    ! kill -0 "$pid" 2>/dev/null
+}
+
+qemu_shutdown_bg() {
+    if [ ! -f "$PID_FILE" ]; then
+        echo "No $PID_FILE found."
+        return 1
+    fi
+    local pid name curr_name
+    pid=$(sed -n '1p' "$PID_FILE")
+    name=$(sed -n '2p' "$PID_FILE")
+    if ! kill -0 "$pid" 2>/dev/null; then
+        echo "QEMU is not running."
+        rm -f "$PID_FILE"
+        return 1
+    fi
+    curr_name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+    if [ "$curr_name" != "${name:0:${#curr_name}}" ]; then
+        echo "PID $pid name not match: '$curr_name' != '$name', ignored."
+        rm -f "$PID_FILE"
+        return 1
+    fi
+
+    echo "QEMU process matched: $name, PID $pid"
+
+    echo "Shutting down QEMU..."
+
+    while :; do
+        echo "Waiting for SSH ready..."
+        wait_ssh_ready || { echo "ERROR: SSH not ready."; break; }
+        echo "Send poweroff..."
+        ssh -p "$SSH_PORT" "${SSH_ARGS[@]}" "$SSH_HOST" poweroff 2>/dev/null || { echo "ERROR: Send poweroff failed."; break; }
+        echo "Wait QEMU terminate..."
+        wait_qemu_exit "$pid" || { echo "ERROR: Wait terminate timeout."; break; }
+        rm -f "$PID_FILE"
+        echo "QEMU exited."
+        return 0
+    done
+
+    echo "Sending SIGTERM..."
+    kill -TERM "$pid" 2>/dev/null || true
+    rm -f "$PID_FILE"
+    echo "QEMU terminated."
+}
+
+# Routine start
+if [ "$SHUTDOWN_BG" = "1" ]; then
+    qemu_shutdown_bg
+    exit $?
+fi
+
+case "$SERIAL_MODE" in
+    stdio)
+        SERIAL_ARGS=(
+            -chardev stdio,id=char0,logfile="$SERIAL_LOG",mux=on
+            -serial chardev:char0
+            -mon chardev=char0
+        )
+        ;;
+    pty)
+        SERIAL_ARGS=(
+            -chardev pty,id=char0,logfile="$SERIAL_LOG"
+            -serial chardev:char0
+        )
+        ;;
+    *) echo "ERROR: Invalid --serial parameter: must be stdio or pty"; exit 1 ;;
+esac
 
 if [ ! -f "$VMLINUX" ]; then
-    echo "ERROR: $VMLINUX not found. Please build kernel first."
+    echo "ERROR: $VMLINUX not found. Try build kernel first."
     exit 1
 fi
 
@@ -49,19 +177,19 @@ case "$VMLINUX_INFO" in
         EXTRA_QEMU_ARGS=()
         ;;
     *)
-        echo "ERROR: unsupported vmlinux arch:"
+        echo "ERROR: Unsupported vmlinux arch:"
         echo "$VMLINUX_INFO"
         exit 1
         ;;
 esac
 
 if [ ! -f "$KERNEL_IMAGE" ]; then
-    echo "ERROR: kernel image not found: $KERNEL_IMAGE"
+    echo "ERROR: Kernel image not found: $KERNEL_IMAGE"
     exit 1
 fi
 
 if [ ! -f "$ROOTFS_IMAGE" ]; then
-    echo "ERROR: rootfs image not found: $ROOTFS_IMAGE"
+    echo "ERROR: Rootfs image not found: $ROOTFS_IMAGE"
     exit 1
 fi
 
@@ -71,19 +199,49 @@ echo "QEMU: $QEMU"
 echo "KERNEL_IMAGE: $KERNEL_IMAGE"
 echo "ROOTFS_IMAGE: $ROOTFS_IMAGE"
 
-"$QEMU" \
-    -m 2048 \
-    -smp 2 \
-    -machine "$MACHINE" \
-    "${EXTRA_QEMU_ARGS[@]}" \
-    -kernel "$KERNEL_IMAGE" \
-    -drive file="$ROOTFS_IMAGE",if=virtio,format=qcow2 \
-    -virtfs local,path="$ROOT_DIR",mount_tag=hostshare,security_model=mapped-xattr,id=hostshare \
-    -append "root=$ROOT_DEV rw console=$CONSOLE $EXTRA_APPEND systemd.show_status=false" \
-    -serial mon:stdio \
-    -nographic \
+QEMU_CMD=(
+    "$QEMU"
+    -m 2048
+    -smp 2
+    -machine "$MACHINE"
+    "${EXTRA_QEMU_ARGS[@]}"
+    -kernel "$KERNEL_IMAGE"
+    -drive file="$ROOTFS_IMAGE",if=virtio,format=qcow2
+    -virtfs local,path="$ROOT_DIR",mount_tag=hostshare,security_model=mapped-xattr,id=hostshare
+    -netdev user,id=net0,hostfwd=tcp::2222-:22
+    -device virtio-net-pci,netdev=net0
+    -append "root=$ROOT_DEV rw console=$CONSOLE $EXTRA_APPEND systemd.show_status=false"
+    "${SERIAL_ARGS[@]}"
+    -nographic
     -s
+)
 
-# Mount 9pfs:
-# 1. sudo mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt
-# 2. echo 'hostshare  /mnt  9p  trans=virtio,version=9p2000.L  0  0' | sudo tee -a /etc/fstab
+if [ "$RUN_BG" = "1" ]; then
+    if [ -f "$PID_FILE" ]; then
+        qemu_shutdown_bg 2>/dev/null || true
+    fi
+    BOOT_LOG="qemu-boot.log"
+    "${QEMU_CMD[@]}" </dev/null >"$BOOT_LOG" 2>&1 &
+    QEMU_PID=$!
+    printf '%s\n%s\n' "$QEMU_PID" "$QEMU" > "$PID_FILE"
+    echo "QEMU started. (PID: $QEMU_PID)"
+    if [ "$SERIAL_MODE" = "pty" ]; then
+        sleep 1
+        PTY_LINE=$(grep -m1 "char device redirected to" "$BOOT_LOG" 2>/dev/null)
+        if [ -n "$PTY_LINE" ]; then
+            echo "Serial: $PTY_LINE"
+        else
+            echo "WARNING: serial pty not found in $BOOT_LOG."
+        fi
+    fi
+    if [ "$WAIT" = "1" ]; then
+        echo "Wait for SSH ready..."
+        if wait_ssh_ready; then
+            echo "SSH is ready: ssh -p $SSH_PORT $SSH_HOST"
+        else
+            echo "ERROR: SSH timeout."
+        fi
+    fi
+else
+    "${QEMU_CMD[@]}"
+fi
