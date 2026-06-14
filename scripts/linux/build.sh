@@ -127,7 +127,7 @@ case "$CMD" in
 
         make "${MAKE_ARGS[@]}" olddefconfig
 
-        make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET"
+        make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET" modules
         ;;
     clean)
         ARCH="$(detect_arch)"
