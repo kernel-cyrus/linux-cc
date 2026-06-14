@@ -100,3 +100,10 @@ Inside a Claude Code session in this repo, two skills automate the loop:
   server (breakpoints, stepping, inspecting structs, panic/Oops/hang analysis).
   The MCP server is installed automatically on first use, then ask, e.g.
   *"set a breakpoint at do_sys_open and step through it"*.
+
+## Todo List
+
+- Kdump and crash analysis
+- CC connect to wechat and feishu
+- Git log and lwn knowledge
+- Mailling list / lore patch run
