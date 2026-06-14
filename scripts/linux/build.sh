@@ -98,13 +98,18 @@ case "$CMD" in
             KALLSYMS_ALL
             NET_9P
             NET_9P_VIRTIO
-            VIRTIO_BLK
+            VIRTIO
             VIRTIO_PCI
+            VIRTIO_MMIO
+            VIRTIO_BLK
+            VIRTIO_NET
+            VIRTIO_CONSOLE
             FUSE_FS
             CUSE
             VIRTIO_FS
             9P_FS
             9P_FS_POSIX_ACL
+            EXT4_FS
             DEBUG_INFO
             GDB_SCRIPTS
             READABLE_ASM
@@ -134,6 +139,11 @@ case "$CMD" in
         done
 
         make "${MAKE_ARGS[@]}" olddefconfig
+
+        # Disable all loadable modules (=m) to cut build time; builtin (=y) untouched
+        sed -i 's/^\(CONFIG_[A-Za-z0-9_]*\)=m$/# \1 is not set/' .config
+        make "${MAKE_ARGS[@]}" olddefconfig
+
         make "${MAKE_ARGS[@]}" -j"$(nproc)" "$IMAGE_TARGET" modules
         make "${MAKE_ARGS[@]}" scripts_gdb
         ;;
