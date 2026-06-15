@@ -31,7 +31,7 @@ set -euo pipefail
 
 # ---- defaults ---------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 REPO_URL="https://github.com/smadi0x86/MDB-MCP.git"
 INSTALL_DIR="${PROJECT_ROOT}/mcp/MDB-MCP"
 MCP_NAME="mdb-gdb"
