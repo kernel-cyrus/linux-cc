@@ -56,7 +56,7 @@ restart Claude Code so the tools load:
 
 ```bash
 cd /home/cyrus/Workspace/codebase/linux-cc
-./.claude/skills/debug-linux/setup_gdb_mcp.sh
+./.claude/skills/debug-linux/reference/setup_gdb_mcp.sh
 ```
 
 This installs `uv`, ensures `gdb` / `gdb-multiarch` (sudo apt-get if missing),
@@ -66,8 +66,8 @@ and OpenCode by default. Registration defaults to **project-level** scope
 `--target claude` or `--target opencode` to register with a single tool:
 
 ```bash
-./.claude/skills/debug-linux/setup_gdb_mcp.sh --target opencode             # project-level
-./.claude/skills/debug-linux/setup_gdb_mcp.sh --target opencode --scope user # global
+./.claude/skills/debug-linux/reference/setup_gdb_mcp.sh --target opencode             # project-level
+./.claude/skills/debug-linux/reference/setup_gdb_mcp.sh --target opencode --scope user # global
 ``` The `mcp__mdb-gdb__*` tools only appear **after** a restart —
 stop here and tell the user to restart if you had to install it.
 
@@ -171,6 +171,32 @@ detach
 cd linux/
 ./run-qemu.sh --shutdown-bg
 ```
+
+## Printing large data structures
+
+The MCP channel has a 1-second timeout. `print *(struct task_struct *)` or similar
+large structs (200+ fields, 3-10KB) will timeout because GDB reads memory over the
+`:1234` remote protocol field-by-field, generating 200+ round trips.
+
+**Workaround — bulk-read raw bytes, parse fields locally with GDB Python:**
+
+1. Use `inferior.read_memory(addr, size)` to read the entire struct in **one** remote
+   read.
+2. Use `gdb.lookup_type("struct foo")` and iterate `.fields()` to get field names,
+   offsets (`.bitpos // 8`), and types.
+3. Extract each field's value from the byte buffer locally (no further remote reads):
+   - `TYPE_CODE_INT` → `int.from_bytes(b, 'little', signed=True)`
+   - `TYPE_CODE_PTR` → `f"0x{int.from_bytes(b):016x}"`
+   - `TYPE_CODE_ARRAY` of `char` → decode null-terminated string
+   - `TYPE_CODE_ENUM` / `TYPE_CODE_FLAGS` → `int.from_bytes(b, 'little')`
+   - `TYPE_CODE_BOOL` → `b[0] != 0`
+   - `TYPE_CODE_STRUCT` / `TYPE_CODE_UNION` → print `"<name, NNNB>"` (recurse if needed)
+   - Follow `TYPE_CODE_TYPEDEF` chains via `.target()` before checking code.
+4. Write the parsed result to `/tmp/struct_dump.txt` and read it with the `Read` tool.
+
+The complete GDB Python script is in
+`.claude/skills/debug-linux/reference/print_large_struct.py` — adapt the address and type
+name, then submit via `mcp__mdb-gdb__gdb_command(session_id, "python ... end")`.
 
 ## Tips
 
