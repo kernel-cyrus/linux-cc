@@ -122,7 +122,7 @@ fi
 case "$SERIAL_MODE" in
     stdio)
         SERIAL_ARGS=(
-            -chardev stdio,id=char0,logfile="$SERIAL_LOG",mux=on
+            -chardev stdio,id=char0,logfile="$SERIAL_LOG",mux=on,signal=off
             -serial chardev:char0
             -mon chardev=char0
         )
@@ -250,5 +250,5 @@ if [ "$RUN_BG" = "1" ]; then
         fi
     fi
 else
-    "${QEMU_CMD[@]}"
+    exec "${QEMU_CMD[@]}"
 fi
