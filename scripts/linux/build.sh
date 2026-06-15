@@ -126,12 +126,15 @@ case "$CMD" in
             9P_FS_POSIX_ACL
             EXT4_FS
             DEBUG_INFO
+            DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
+            FRAME_POINTER
             GDB_SCRIPTS
             READABLE_ASM
             FUNCTION_TRACER
         )
 
         DISABLE_CONFIGS=(
+            DEBUG_INFO_NONE
             DEBUG_INFO_REDUCED
         )
 
