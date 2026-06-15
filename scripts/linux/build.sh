@@ -53,7 +53,22 @@ detect_arch() {
 
 case "$CMD" in
     build)
-        ARCH="${ARCH:-$HOST_ARCH}"
+        if [ -n "${ARCH:-}" ]; then
+            if [ -f .config ]; then
+                CONFIG_ARCH="$(detect_arch)"
+                if [ "$ARCH" != "$CONFIG_ARCH" ]; then
+                    echo "ERROR: ARCH=$ARCH conflicts with .config (arch=$CONFIG_ARCH)." >&2
+                    echo "Run './build.sh mrproper' to clean the old build first." >&2
+                    exit 1
+                fi
+            fi
+        elif [ -f .config ]; then
+            ARCH="$(detect_arch)"
+            echo "Detected arch from .config: $ARCH"
+        else
+            ARCH="$HOST_ARCH"
+        fi
+
         CROSS_COMPILE="${CROSS_COMPILE:-}"
 
         if [ "$ARCH" != "$HOST_ARCH" ] && [ -z "$CROSS_COMPILE" ]; then
