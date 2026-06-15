@@ -229,7 +229,7 @@ echo
 echo "====================================================="
 echo "  Enable SSH access to guest VM  (manual steps)"
 echo "====================================================="
-echo "1. Setup ssh server in guest VM
+echo "1. Setup ssh server in guest VM"
 echo "    apt update"
 echo "    apt install -y openssh-server"
 echo "    echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config"
