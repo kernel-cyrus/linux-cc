@@ -59,9 +59,8 @@ ARCH=riscv ./build.sh build
 - The project root (`linux-cc/`) is shared into the VM at `/mnt` via 9pfs (virtio),
   so files under `user/` are reachable in the guest at `/mnt/user/...` (no copying)
 - **SSH:** host port 2222 forwards to guest :22 —
-  `ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost '<cmd>'`
-  (`UserKnownHostsFile=/dev/null` keeps a regenerated guest host key from
-  blocking automated SSH — see Troubleshooting)
+  `ssh -p 2222 -o StrictHostKeyChecking=no root@localhost '<cmd>'`
+  (if the host key changes, see the **REMOTE HOST IDENTIFICATION HAS CHANGED** troubleshooting section)
 - `-s` flag enables the GDB stub on port 1234 (always on while QEMU runs)
 - `nokaslr` is set on the kernel cmdline, so symbol addresses are stable
 - Supported targets: x86_64, arm64 (cortex-a57), riscv64

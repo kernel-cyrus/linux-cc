@@ -21,7 +21,7 @@ Options:
 # VM SSH
 SSH_HOST="root@localhost"
 SSH_PORT=2222
-SSH_ARGS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3)
+SSH_ARGS=(-o StrictHostKeyChecking=no -o ConnectTimeout=3)
 
 # Options
 SERIAL_LOG="serial.log"
