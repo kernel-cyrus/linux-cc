@@ -130,8 +130,9 @@ Two ways to drive GDB against the QEMU stub on `:1234`:
   `vmlinux`, sources `vmlinux-gdb.py`, and breaks at `start_kernel`.
 - **`mdb-gdb` MCP server** — drives `gdb-multiarch` through the
   `mcp__mdb-gdb__*` tools. Install/register with
-  `.claude/skills/debug-linux/setup_gdb_mcp.sh --install-deps`; the tools appear only after a
-  Claude Code restart. See the **debug-linux** skill for the full flow.
+  `.claude/skills/debug-linux/setup_gdb_mcp.sh` (defaults to `--target all` to
+  register with both Claude Code and OpenCode); the tools appear only after a
+  restart. See the **debug-linux** skill for the full flow.
 
 ## Skills
 

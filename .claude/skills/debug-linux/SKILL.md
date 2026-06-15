@@ -56,12 +56,20 @@ restart Claude Code so the tools load:
 
 ```bash
 cd /home/cyrus/Workspace/codebase/linux-cc
-./.claude/skills/debug-linux/setup_gdb_mcp.sh --install-deps
+./.claude/skills/debug-linux/setup_gdb_mcp.sh
 ```
 
-This installs `uv`, ensures `gdb` / `gdb-multiarch`, clones MDB-MCP, and registers
-the `mdb-gdb` MCP server. The `mcp__mdb-gdb__*` tools only appear **after** a Claude
-Code restart — stop here and tell the user to restart if you had to install it.
+This installs `uv`, ensures `gdb` / `gdb-multiarch` (sudo apt-get if missing),
+clones MDB-MCP, and registers the `mdb-gdb` MCP server with both Claude Code
+and OpenCode by default. Registration defaults to **project-level** scope
+(`--scope project`); use `--scope user` for global installation. Use
+`--target claude` or `--target opencode` to register with a single tool:
+
+```bash
+./.claude/skills/debug-linux/setup_gdb_mcp.sh --target opencode             # project-level
+./.claude/skills/debug-linux/setup_gdb_mcp.sh --target opencode --scope user # global
+``` The `mcp__mdb-gdb__*` tools only appear **after** a restart —
+stop here and tell the user to restart if you had to install it.
 
 ### 3. Boot QEMU in the background, wait for SSH
 

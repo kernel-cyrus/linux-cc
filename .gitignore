@@ -3,3 +3,5 @@
 /user
 /mcp/*
 !/mcp/.gitkeep
+/.mcp.json
+/opencode.jsonc
