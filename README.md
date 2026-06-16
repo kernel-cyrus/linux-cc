@@ -9,6 +9,7 @@ driven by Claude Code.
 linux/    # kernel source (build.sh, run-qemu.sh, run-gdb.sh symlinked in)
 rootfs/   # QEMU Debian disk images
 scripts/  # setup + linux/ helper scripts
+  install-cc-connect.sh   # cc-connect install wizard (Feishu / WeChat)
 user/     # all generated output (modules / programs / markdown)
 ```
 
@@ -101,9 +102,54 @@ Inside a Claude Code session in this repo, two skills automate the loop:
   The MCP server is installed automatically on first use, then ask, e.g.
   *"set a breakpoint at do_sys_open and step through it"*.
 
+## Install cc-connect (IM Bridge)
+
+[cc-connect](https://github.com/chenhg5/cc-connect) bridges Claude Code to messaging platforms so you can chat with the agent from Feishu or WeChat.
+
+### Install
+
+```bash
+bash scripts/install-cc-connect.sh [--backend claude|opencode]
+```
+
+The wizard installs the binary from GitHub, prompts for platform credentials, and writes `~/.cc-connect/config.toml`.
+
+### Options
+
+```
+--backend <claude|opencode>         Set AI backend (skips interactive prompt)
+--switch-backend <claude|opencode>  Switch backend in existing config without reinstalling
+--remove                            Uninstall cc-connect binary and config
+--help                              Show help
+```
+
+### Start
+
+```bash
+cc-connect
+```
+
+Config file: `~/.cc-connect/config.toml`
+
+### Feishu setup (WebSocket — no public IP needed)
+
+1. Create an enterprise app at https://open.feishu.cn/
+2. Add permissions: `contact:user.base:readonly`, `im:message.p2p_msg:readonly`, `im:message.group_at_msg:readonly`, `im:message:send_as_bot`
+3. Event subscription → **long connection** → add event `im.message.receive_v1` and callback `card.action.trigger`
+4. Publish the app
+
+### WeChat setup (ilink gateway)
+
+After `cc-connect` is running:
+
+```bash
+cc-connect weixin setup --project linux-cc
+```
+
+Scan the QR code with WeChat to obtain and bind the token.
+
 ## Todo List
 
 - Kdump and crash analysis
-- CC connect to wechat and feishu
 - Git log and lwn knowledge
 - Mailling list / lore patch run
